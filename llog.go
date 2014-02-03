@@ -119,14 +119,14 @@ func (l *Logger) Threshold() severity {
 	return l.threshold
 }
 
-// SetThreshold sets a new log threshold
+// SetThreshold sets a new log threshold.
 // s denotes the lowest level to log
 func (l *Logger) SetThreshold(s severity) {
 	l.threshold = s
 }
 
-// Pdate enables/disables date output in prefix
-// default: enabled
+// Pdate enables/disables date output in prefix.
+// Default: enabled
 func (l *Logger) Pdate(set bool) {
 	if set {
 		l.stdlog.SetFlags(l.stdlog.Flags() | log.Ldate)
@@ -135,8 +135,8 @@ func (l *Logger) Pdate(set bool) {
 	}
 }
 
-// Ptime enables/disables time output in prefix
-// default: enabled
+// Ptime enables/disables time output in prefix.
+// Default: enabled
 func (l *Logger) Ptime(set bool) {
 	if set {
 		l.stdlog.SetFlags(l.stdlog.Flags() | log.Ltime)
@@ -145,8 +145,8 @@ func (l *Logger) Ptime(set bool) {
 	}
 }
 
-// Pmicroseconds enables/disables microseconds output in prefix
-// default: disabled
+// Pmicroseconds enables/disables microseconds output in prefix.
+// Default: disabled
 func (l *Logger) Pmicroseconds(set bool) {
 	if set {
 		l.stdlog.SetFlags(l.stdlog.Flags() | log.Lmicroseconds)
@@ -155,9 +155,9 @@ func (l *Logger) Pmicroseconds(set bool) {
 	}
 }
 
-// Pshortfile enables/disables short filename output in prefix
-// enabling Pshortfile, disables Plongfile
-// default: disabled
+// Pshortfile enables/disables short filename output in prefix.
+// Enabling Pshortfile, disables Plongfile.
+// Default: disabled
 func (l *Logger) Pshortfile(set bool) {
 	if set {
 		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Llongfile)
@@ -167,9 +167,9 @@ func (l *Logger) Pshortfile(set bool) {
 	}
 }
 
-// Plongfile enables/disables long (full path) filename output in prefix
-// enabling Plongfile, disables Pshortfile
-// default: disabled
+// Plongfile enables/disables long (full path) filename output in prefix.
+// Enabling Plongfile, disables Pshortfile.
+// Default: disabled
 func (l *Logger) Plongfile(set bool) {
 	if set {
 		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Lshortfile)
@@ -179,8 +179,8 @@ func (l *Logger) Plongfile(set bool) {
 	}
 }
 
-// Pseverity enables/disables severity output in prefix
-// default: disabled
+// Pseverity enables/disables severity output in prefix.
+// Default: disabled
 func (l *Logger) Pseverity(set bool) {
 	l.severityPrefix = set
 }
