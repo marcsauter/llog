@@ -1,0 +1,5 @@
+examples/combined/combined
+examples/logfile/logfile
+examples/stderr/stderr
+examples/syslog/syslog
+*.log

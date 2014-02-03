@@ -1,3 +1,4 @@
+// Package llog implements level logging on top of log package.
 package llog
 
 import (
@@ -28,139 +29,164 @@ var severityName = []string{
 	PANIC:   "PANIC",
 }
 
-type loggerT struct {
-	threshold severity
-	prefix    *string
-	writer    io.Writer
-	syslog    *syslog.Writer
+type Logger struct {
+	threshold      severity
+	severityPrefix bool
+	syslog         *syslog.Writer
+	stdlog         *log.Logger
 }
 
-func (l *loggerT) print(s severity, v ...interface{}) {
+func (l *Logger) print(s severity, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	log.Print(v...)
 	l.syslogMessage(s, fmt.Sprint(v...))
-	l.action(s, v...)
+	if l.severityPrefix {
+		v = append([]interface{}{fmt.Sprintf("%s - ", severityName[s])}, v...)
+	}
+	switch s {
+	case FATAL:
+		l.stdlog.Fatal(v...)
+	case PANIC:
+		l.stdlog.Panic(v...)
+	default:
+		l.stdlog.Print(v...)
+	}
 }
 
-func (l *loggerT) printf(s severity, format string, v ...interface{}) {
+func (l *Logger) printf(s severity, format string, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	log.Printf(format, v...)
 	l.syslogMessage(s, fmt.Sprintf(format, v...))
-	l.action(s, v...)
+	if l.severityPrefix {
+		format = fmt.Sprintf("%s - %s", severityName[s], format)
+	}
+	switch s {
+	case FATAL:
+		l.stdlog.Fatalf(format, v...)
+	case PANIC:
+		l.stdlog.Panicf(format, v...)
+	default:
+		l.stdlog.Printf(format, v...)
+	}
 }
 
-func (l *loggerT) println(s severity, v ...interface{}) {
+func (l *Logger) println(s severity, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	log.Println(v...)
 	l.syslogMessage(s, fmt.Sprintln(v...))
-	l.action(s, v...)
+	if l.severityPrefix {
+		v = append([]interface{}{fmt.Sprintf("%s -", severityName[s])}, v...)
+	}
+	switch s {
+	case FATAL:
+		l.stdlog.Fatalln(v...)
+	case PANIC:
+		l.stdlog.Panicln(v...)
+	default:
+		l.stdlog.Println(v...)
+	}
 }
 
-func (l *loggerT) syslogMessage(s severity, m string) {
-	if logger.syslog != nil {
+func (l *Logger) syslogMessage(s severity, m string) {
+	if l.syslog != nil {
 		switch s {
 		case DEBUG:
-			logger.syslog.Debug(m)
+			l.syslog.Debug(m)
 		case INFO:
-			logger.syslog.Info(m)
+			l.syslog.Info(m)
 		case WARNING:
-			logger.syslog.Warning(m)
+			l.syslog.Warning(m)
 		case ERROR:
-			logger.syslog.Err(m)
+			l.syslog.Err(m)
 		case FATAL:
-			logger.syslog.Alert(m)
+			l.syslog.Alert(m)
 		case PANIC:
-			logger.syslog.Emerg(m)
+			l.syslog.Emerg(m)
 		}
 	}
 }
 
-func (l *loggerT) action(s severity, v ...interface{}) {
-	switch s {
-	case ERROR:
-		os.Exit(1)
-	case PANIC:
-		s := fmt.Sprint(v...)
-		panic(s)
-	}
+// SetPrefix sets the output prefix for the logger.
+func (l *Logger) SetPrefix(prefix string) {
+	l.stdlog.SetPrefix(prefix)
 }
 
-func Threshold() severity {
-	return logger.threshold
+// Threshold returns the current log threshold
+func (l *Logger) Threshold() severity {
+	return l.threshold
 }
 
-func SetThreshold(s severity) {
-	logger.threshold = s
+// SetThreshold sets a new log threshold
+// s denotes the lowest level to log
+func (l *Logger) SetThreshold(s severity) {
+	l.threshold = s
 }
 
-func Hdate(set bool) {
+// Pdate enables/disables date output in prefix
+// default: enabled
+func (l *Logger) Pdate(set bool) {
 	if set {
-		log.SetFlags(log.Flags() | log.Ldate)
+		l.stdlog.SetFlags(l.stdlog.Flags() | log.Ldate)
 	} else {
-		log.SetFlags(log.Flags() & ^log.Ldate)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Ldate)
 	}
 }
 
-func Htime(set bool) {
+// Ptime enables/disables time output in prefix
+// default: enabled
+func (l *Logger) Ptime(set bool) {
 	if set {
-		log.SetFlags(log.Flags() | log.Ltime)
+		l.stdlog.SetFlags(l.stdlog.Flags() | log.Ltime)
 	} else {
-		log.SetFlags(log.Flags() & ^log.Ltime)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Ltime)
 	}
 }
 
-func Hmicroseconds(set bool) {
+// Pmicroseconds enables/disables microseconds output in prefix
+// default: disabled
+func (l *Logger) Pmicroseconds(set bool) {
 	if set {
-		log.SetFlags(log.Flags() | log.Lmicroseconds)
+		l.stdlog.SetFlags(l.stdlog.Flags() | log.Lmicroseconds)
 	} else {
-		log.SetFlags(log.Flags() & ^log.Lmicroseconds)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Lmicroseconds)
 	}
 }
 
-func Hshortfile(set bool) {
+// Pshortfile enables/disables short filename output in prefix
+// enabling Pshortfile, disables Plongfile
+// default: disabled
+func (l *Logger) Pshortfile(set bool) {
 	if set {
-		log.SetFlags(log.Flags() & ^log.Llongfile)
-		log.SetFlags(log.Flags() | log.Lshortfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Llongfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() | log.Lshortfile)
 	} else {
-		log.SetFlags(log.Flags() & ^log.Lshortfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Lshortfile)
 	}
 }
 
-func Hlongfile(set bool) {
+// Plongfile enables/disables long (full path) filename output in prefix
+// enabling Plongfile, disables Pshortfile
+// default: disabled
+func (l *Logger) Plongfile(set bool) {
 	if set {
-		log.SetFlags(log.Flags() & ^log.Lshortfile)
-		log.SetFlags(log.Flags() | log.Llongfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Lshortfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() | log.Llongfile)
 	} else {
-		log.SetFlags(log.Flags() & ^log.Llongfile)
+		l.stdlog.SetFlags(l.stdlog.Flags() & ^log.Llongfile)
 	}
 }
 
-func Hseverity(set bool) {
-
+// Pseverity enables/disables severity output in prefix
+// default: disabled
+func (l *Logger) Pseverity(set bool) {
+	l.severityPrefix = set
 }
 
-func SetOutput(w io.Writer) {
-	logger.writer = w
-	log.SetOutput(logger.writer)
-}
-
-func SetLogfile(filename string) error {
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	logger.writer = io.MultiWriter(logger.writer, f)
-	log.SetOutput(logger.writer)
-	return nil
-}
-
-func SetSyslog(priority syslog.Priority, tag string) error {
+// SetSyslog adds syslog output to the logger
+func (l *Logger) SetSyslog(priority syslog.Priority, tag string) error {
 	// set default priority
 	if priority == 0 {
 		priority = syslog.LOG_INFO | syslog.LOG_USER
@@ -169,88 +195,110 @@ func SetSyslog(priority syslog.Priority, tag string) error {
 	if err != nil {
 		return err
 	}
-	logger.syslog = w
+	l.syslog = w
 	return nil
 }
 
-var logger *loggerT
-
-func init() {
-	logger = new(loggerT)
-	// initial log level
-	logger.threshold = INFO
-	logger.writer = io.MultiWriter(os.Stderr)
-	log.SetOutput(logger.writer)
+// Debug writes debug message with log.Print
+func (l *Logger) Debug(v ...interface{}) {
+	l.print(DEBUG, v...)
 }
 
-func Debug(v ...interface{}) {
-	logger.print(DEBUG, v...)
+// Debug writes debug message with log.Printf
+func (l *Logger) Debugf(format string, v ...interface{}) {
+	l.printf(DEBUG, format, v...)
 }
 
-func Debugf(format string, v ...interface{}) {
-	logger.printf(DEBUG, format, v...)
+// Debug writes debug message with log.Println
+func (l *Logger) Debugln(v ...interface{}) {
+	l.println(DEBUG, v...)
 }
 
-func Debugln(v ...interface{}) {
-	logger.println(DEBUG, v...)
+// Info writes info message with log.Print
+func (l *Logger) Info(v ...interface{}) {
+	l.print(INFO, v...)
 }
 
-func Info(v ...interface{}) {
-	logger.print(INFO, v...)
+// Info writes info message with log.Printf
+func (l *Logger) Infof(format string, v ...interface{}) {
+	l.printf(INFO, format, v...)
 }
 
-func Infof(format string, v ...interface{}) {
-	logger.printf(INFO, format, v...)
+// Info writes info message with log.Println
+func (l *Logger) Infoln(v ...interface{}) {
+	l.println(INFO, v...)
 }
 
-func Infoln(v ...interface{}) {
-	logger.println(INFO, v...)
+// Warning writes warning message with log.Print
+func (l *Logger) Warning(v ...interface{}) {
+	l.print(WARNING, v...)
 }
 
-func Warning(v ...interface{}) {
-	logger.print(WARNING, v...)
+// Warning writes warning message with log.Printf
+func (l *Logger) Warningf(format string, v ...interface{}) {
+	l.printf(WARNING, format, v...)
 }
 
-func Warningf(format string, v ...interface{}) {
-	logger.printf(WARNING, format, v...)
+// Warning writes warning message with log.Println
+func (l *Logger) Warningln(v ...interface{}) {
+	l.println(WARNING, v...)
 }
 
-func Warningln(v ...interface{}) {
-	logger.println(WARNING, v...)
+// Error writes error message with log.Print
+func (l *Logger) Error(v ...interface{}) {
+	l.print(ERROR, v...)
 }
 
-func Error(v ...interface{}) {
-	logger.print(ERROR, v...)
+// Error writes error message with log.Printf
+func (l *Logger) Errorf(format string, v ...interface{}) {
+	l.printf(ERROR, format, v...)
 }
 
-func Errorf(format string, v ...interface{}) {
-	logger.printf(ERROR, format, v...)
+// Error writes error message with log.Println
+func (l *Logger) Errorln(v ...interface{}) {
+	l.println(ERROR, v...)
 }
 
-func Errorln(v ...interface{}) {
-	logger.println(ERROR, v...)
+// Fatal writes fatal message with log.Fatal
+func (l *Logger) Fatal(v ...interface{}) {
+	l.print(FATAL, v...)
 }
 
-func Fatal(v ...interface{}) {
-	logger.print(FATAL, v...)
+// Fatal writes fatal message with log.Fatalf
+func (l *Logger) Fatalf(format string, v ...interface{}) {
+	l.printf(FATAL, format, v...)
 }
 
-func Fatalf(format string, v ...interface{}) {
-	logger.printf(FATAL, format, v...)
+// Fatal writes fatal message with log.Fatalln
+func (l *Logger) Fatalln(v ...interface{}) {
+	l.println(FATAL, v...)
 }
 
-func Fatalln(v ...interface{}) {
-	logger.println(FATAL, v...)
+// Panic writes panic message with log.Panic
+func (l *Logger) Panic(v ...interface{}) {
+	l.print(PANIC, v...)
 }
 
-func Panic(v ...interface{}) {
-	logger.print(PANIC, v...)
+// Panic writes panic message with log.Panicf
+func (l *Logger) Panicf(format string, v ...interface{}) {
+	l.printf(PANIC, format, v...)
 }
 
-func Panicf(format string, v ...interface{}) {
-	logger.printf(PANIC, format, v...)
+// Panic writes panic message with log.Panicln
+func (l *Logger) Panicln(v ...interface{}) {
+	l.println(PANIC, v...)
 }
 
-func Panicln(v ...interface{}) {
-	logger.println(PANIC, v...)
+// AddLogfile is a convenience method to add a logfile as output
+func AddLogfile(current io.Writer, filename string) (io.Writer, error) {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		return current, err
+	}
+	return io.MultiWriter(current, f), nil
+}
+
+// New creates a new logger
+func New(threshold severity, output io.Writer) *Logger {
+	return &Logger{threshold: threshold, stdlog: log.New(output, "", log.LstdFlags)}
 }
