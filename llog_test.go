@@ -21,7 +21,7 @@ func TestThreshold(t *testing.T) {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 	logger := New(INFO, w)
-	logger.Debug("Hallo", "Marc")
+	logger.Debug(message...)
 	w.Flush()
 	if b.Len() > 0 {
 		t.Errorf("threshold does not work\n")
