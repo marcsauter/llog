@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/syslog"
-	"os"
 )
 
 type severity uint8
@@ -32,7 +30,6 @@ var severityName = []string{
 type Logger struct {
 	threshold      severity
 	severityPrefix bool
-	syslog         *syslog.Writer
 	stdlog         *log.Logger
 }
 
@@ -40,7 +37,6 @@ func (l *Logger) print(s severity, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	l.syslogMessage(s, fmt.Sprint(v...))
 	if l.severityPrefix {
 		v = append([]interface{}{fmt.Sprintf("%s - ", severityName[s])}, v...)
 	}
@@ -58,7 +54,6 @@ func (l *Logger) printf(s severity, format string, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	l.syslogMessage(s, fmt.Sprintf(format, v...))
 	if l.severityPrefix {
 		format = fmt.Sprintf("%s - %s", severityName[s], format)
 	}
@@ -76,7 +71,6 @@ func (l *Logger) println(s severity, v ...interface{}) {
 	if s < l.threshold {
 		return
 	}
-	l.syslogMessage(s, fmt.Sprintln(v...))
 	if l.severityPrefix {
 		v = append([]interface{}{fmt.Sprintf("%s -", severityName[s])}, v...)
 	}
@@ -87,25 +81,6 @@ func (l *Logger) println(s severity, v ...interface{}) {
 		l.stdlog.Panicln(v...)
 	default:
 		l.stdlog.Println(v...)
-	}
-}
-
-func (l *Logger) syslogMessage(s severity, m string) {
-	if l.syslog != nil {
-		switch s {
-		case DEBUG:
-			l.syslog.Debug(m)
-		case INFO:
-			l.syslog.Info(m)
-		case WARNING:
-			l.syslog.Warning(m)
-		case ERROR:
-			l.syslog.Err(m)
-		case FATAL:
-			l.syslog.Alert(m)
-		case PANIC:
-			l.syslog.Emerg(m)
-		}
 	}
 }
 
@@ -183,20 +158,6 @@ func (l *Logger) Plongfile(set bool) {
 // Default: disabled
 func (l *Logger) Pseverity(set bool) {
 	l.severityPrefix = set
-}
-
-// SetSyslog adds syslog output to the logger
-func (l *Logger) SetSyslog(priority syslog.Priority, tag string) error {
-	// set default priority
-	if priority == 0 {
-		priority = syslog.LOG_INFO | syslog.LOG_USER
-	}
-	w, err := syslog.New(priority, tag)
-	if err != nil {
-		return err
-	}
-	l.syslog = w
-	return nil
 }
 
 // Debug writes debug message with log.Print
@@ -287,15 +248,6 @@ func (l *Logger) Panicf(format string, v ...interface{}) {
 // Panic writes panic message with log.Panicln
 func (l *Logger) Panicln(v ...interface{}) {
 	l.println(PANIC, v...)
-}
-
-// AddLogfile is a convenience method to add a logfile as output
-func AddLogfile(current io.Writer, filename string) (io.Writer, error) {
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-	if err != nil {
-		return current, err
-	}
-	return io.MultiWriter(current, f), nil
 }
 
 // New creates a new logger
