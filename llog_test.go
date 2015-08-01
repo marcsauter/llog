@@ -4,101 +4,108 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 )
 
 const (
-	StdHeader  = `\d{4}/[01]\d/[0-3]\d [0-2]\d:[0-5]\d:[0-5]\d\s`
-	TestPrefix = `INFO - `
+	StdHeader     = `\d{4}/[01]\d/[0-3]\d [0-2]\d:[0-5]\d:[0-5]\d\s`
+	DebugPrefix   = `DEBUG - `
+	InfoPrefix    = `INFO - `
+	WarningPrefix = `WARNING - `
+	ErrorPrefix   = `ERROR - `
+	FatalPrefix   = `FATAL - `
+	PanicPrefix   = `PANIC - `
 )
 
 var message []interface{} = []interface{}{"Test", "Message", 1}
-var format string = "%s %s %d\n"
+var printmsg string = fmt.Sprint(message...)
+var printfmsg string = fmt.Sprintf("%s %s %d\n", message...)
+var printlnmsg string = fmt.Sprintln(message...)
 
-func TestThreshold(t *testing.T) {
+func print(s severity, m string, ps bool) *bytes.Buffer {
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Debug(message...)
+	l := New(s, w)
+	l.Pseverity(ps)
+	reflect.ValueOf(l).MethodByName(m).Call([]reflect.Value{reflect.ValueOf(printmsg)})
 	w.Flush()
-	if b.Len() > 0 {
+	return &b
+}
+
+func printf(s severity, m string, ps bool) *bytes.Buffer {
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+	l := New(s, w)
+	l.Pseverity(ps)
+	reflect.ValueOf(l).MethodByName(m).Call([]reflect.Value{reflect.ValueOf(printfmsg)})
+	w.Flush()
+	return &b
+}
+
+func println(s severity, m string, ps bool) *bytes.Buffer {
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+	l := New(s, w)
+	l.Pseverity(ps)
+	reflect.ValueOf(l).MethodByName(m).Call([]reflect.Value{reflect.ValueOf(printlnmsg)})
+	w.Flush()
+	return &b
+}
+
+func TestThreshold(t *testing.T) {
+	if print(INFO, "Debug", false).Len() > 0 {
 		t.Errorf("threshold does not work\n")
 	}
 }
 
 func TestPrint(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Info(message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, fmt.Sprint(message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrint: message does not match\n")
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, printmsg}, ""))
+	m := print(INFO, "Info", false)
+	fmt.Print(m.String())
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }
 
 func TestPrintf(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Infof(format, message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, fmt.Sprintf(format, message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrintf: message does not match\n")
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, printfmsg}, ""))
+	m := printf(INFO, "Infof", false)
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }
 
 func TestPrintln(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Infoln(message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, fmt.Sprintln(message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrintln: message does not match\n")
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, printlnmsg}, ""))
+	m := println(INFO, "Infoln", false)
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }
 
-func TestPrefixPrint(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Pseverity(true)
-	logger.Info(message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, TestPrefix, fmt.Sprint(message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrefixPrint: message does not match\n")
+func TestDebugPrint(t *testing.T) {
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, DebugPrefix, printmsg}, ""))
+	m := print(DEBUG, "Debug", true)
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }
 
-func TestPrefixPrintf(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Pseverity(true)
-	logger.Infof(format, message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, TestPrefix, fmt.Sprintf(format, message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrefixPrintf: message does not match\n")
+func TestDebugPrintf(t *testing.T) {
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, DebugPrefix, printfmsg}, ""))
+	m := printf(DEBUG, "Debugf", true)
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }
 
-func TestPrefixPrintln(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-	logger := New(INFO, w)
-	logger.Pseverity(true)
-	logger.Infoln(message...)
-	w.Flush()
-	r := regexp.MustCompile(strings.Join([]string{StdHeader, TestPrefix, fmt.Sprintln(message...)}, ""))
-	if !r.Match(b.Bytes()) {
-		t.Errorf("TestPrefixPrintln: message does not match\n")
+func TestDebugPrintln(t *testing.T) {
+	r := regexp.MustCompile(strings.Join([]string{StdHeader, DebugPrefix, printlnmsg}, ""))
+	m := println(DEBUG, "Debugln", true)
+	if !r.Match(m.Bytes()) {
+		t.Errorf("message does not match: %s\n", m.String())
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 )
 
 type severity uint8
@@ -32,6 +33,13 @@ type Logger struct {
 	severityPrefix bool
 	stdlog         *log.Logger
 }
+
+// New creates a new logger
+func New(threshold severity, output io.Writer) *Logger {
+	return &Logger{threshold: threshold, stdlog: log.New(output, "", log.LstdFlags)}
+}
+
+var std = New(INFO, os.Stderr)
 
 func (l *Logger) print(s severity, v ...interface{}) {
 	if s < l.threshold {
@@ -250,7 +258,77 @@ func (l *Logger) Panicln(v ...interface{}) {
 	l.println(PANIC, v...)
 }
 
-// New creates a new logger
-func New(threshold severity, output io.Writer) *Logger {
-	return &Logger{threshold: threshold, stdlog: log.New(output, "", log.LstdFlags)}
+// Debug writes a debug message with the standard logger
+func Debug(v ...interface{}) {
+	std.Debug(v...)
+}
+
+// Debugf writes a debug message with the standard logger
+func Debugf(format string, v ...interface{}) {
+	std.Debugf(format, v...)
+}
+
+// Debugln writes a debug message with the standard logger
+func Debugln(v ...interface{}) {
+	std.Debugln(v...)
+}
+
+// Info writes a info message with the standard logger
+func Info(v ...interface{}) {
+	std.Info(v...)
+}
+
+// Infof writes a info message with the standard logger
+func Infof(format string, v ...interface{}) {
+	std.Infof(format, v...)
+}
+
+// Infoln writes a info message with the standard logger
+func Infoln(v ...interface{}) {
+	std.Infoln(v...)
+}
+
+// Warning writes a warning message with the standard logger
+func Warning(v ...interface{}) {
+	std.Warning(v...)
+}
+
+// Warningf writes a warning message with the standard logger
+func Warningf(format string, v ...interface{}) {
+	std.Warningf(format, v...)
+}
+
+// Warningln writes a warning message with the standard logger
+func Warningln(v ...interface{}) {
+	std.Warningln(v...)
+}
+
+// Error writes a error message with the standard logger
+func Error(v ...interface{}) {
+	std.Error(v...)
+}
+
+// Errorf writes a error message with the standard logger
+func Errorf(format string, v ...interface{}) {
+	std.Errorf(format, v...)
+}
+
+// Errorln writes a error message with the standard logger
+func Errorln(v ...interface{}) {
+	std.Errorln(v...)
+}
+
+// Panic writes a panic message with the standard logger
+func Panic(v ...interface{}) {
+	std.Panic(v...)
+}
+
+// Panicf writes a panic message with the standard logger
+func Panicf(format string, v ...interface{}) {
+	std.Panicf(format, v...)
+}
+
+// Panicln writes a panic message with the standard logger
+func Panicln(v ...interface{}) {
+	std.Panicln(v...)
 }
